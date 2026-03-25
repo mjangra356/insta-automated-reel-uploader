@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import yt_dlp
-from config import VIDEO_DIR, BROWSER_FOR_COOKIES, COOKIES_FILE
+from config import VIDEO_DIR, BROWSER_FOR_COOKIES, COOKIES_FILE, DOG_VIDEO_DIR, DISCOVER_CONTENT
 from utils.logger import get_logger
 from utils.file_manager import ensure_dir
 
@@ -13,16 +13,23 @@ logger = get_logger('downloader_agent')
 
 class DownloaderAgent:
     def __init__(self):
-        self.output_dir = VIDEO_DIR
+
+        content_map = {
+            "DOG": DOG_VIDEO_DIR,
+            "CAT": VIDEO_DIR
+        }
+
+        content_type = DISCOVER_CONTENT.upper()
+
+        self.output_dir = content_map.get(content_type, VIDEO_DIR)
         ensure_dir(self.output_dir)
 
     def download(self, video_id, video_url):
-        logger.info(f"Downloading {video_id}: {video_url}")
         
         output_template = os.path.join(self.output_dir, f"{video_id}.%(ext)s")
         
         ydl_opts = {
-            "outtmpl": "videos/%(id)s.%(ext)s",
+            "outtmpl": output_template,
             "cookies": "cookies.txt",
             "js_runtimes": {"node": {}},
             "remote_components": ["ejs:github"],
@@ -51,7 +58,7 @@ class DownloaderAgent:
                 logger.info(f"Successfully downloaded to {expected_path}")
                 return expected_path
             else:
-                logger.error(f"Download seemingly succeeded but file not found for {video_id}")
+                logger.error(f"Download seemingly succeeded but file not found for {video_id} on path {expected_path}")
                 return None
                 
         except Exception as e:

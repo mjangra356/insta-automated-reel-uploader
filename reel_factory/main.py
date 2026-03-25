@@ -4,13 +4,14 @@ import sys
 # Ensure config can be found
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-from config import CHANNEL_URL, QUEUE_FILE, USED_FILE
+from config import CHANNEL_URL, QUEUE_FILE, USED_FILE, DOG_QUEUE_FILE, DOG_USED_FILE, DISCOVER_CONTENT
 from agents.discovery_agent import DiscoveryAgent
 from agents.downloader_agent import DownloaderAgent
 from agents.processor_agent import ProcessorAgent
-from agents.publisher_agent import PublisherAgent
 from utils.logger import get_logger
 from utils.file_manager import load_json, save_json, remove_file
+from agents.instagram_publisher import InstagramPublisher
+from agents.facebook_publisher import FacebookPublisher
 
 logger = get_logger('main_pipeline')
 
@@ -23,6 +24,16 @@ def discover_and_process():
     discovery = DiscoveryAgent()
     downloader = DownloaderAgent()
     processor = ProcessorAgent()
+
+    if(DISCOVER_CONTENT == 'DOG'):
+        queue_f = DOG_QUEUE_FILE
+        used_f = DOG_USED_FILE
+    else:
+        queue_f = QUEUE_FILE
+        used_f = USED_FILE
+
+    logger.info(f"Queue File Path - {queue_f}")
+    logger.info(f"Used File Path - {used_f}")
     
     # 1. Discover
     videos = discovery.discover(CHANNEL_URL)
@@ -30,8 +41,8 @@ def discover_and_process():
         logger.info("No new videos found to process.")
         return
         
-    queue = load_json(QUEUE_FILE, default_value=[])
-    used = load_json(USED_FILE, default_value=[])
+    queue = load_json(queue_f, default_value=[])
+    used = load_json(used_f, default_value=[])
     
     for video in videos:
         video_id = video['video_id']
@@ -39,6 +50,7 @@ def discover_and_process():
         
         # 2. Download
         downloaded_path = downloader.download(video_id, video['video_url'])
+        logger.info(f"Downloaded at {downloaded_path}")
         if not downloaded_path:
             logger.error(f"Failed to download {video_id}, skipping.")
             continue
@@ -49,7 +61,7 @@ def discover_and_process():
             logger.error(f"Failed to process {video_id}, skipping.")
             # Clean up raw download if not the same path
             if downloaded_path != processed_path:
-                 remove_file(downloaded_path)
+                remove_file(downloaded_path)
             continue
             
         # Add to queue
@@ -59,11 +71,11 @@ def discover_and_process():
             "status": "pending",
             "title": video['title']
         })
-        save_json(QUEUE_FILE, queue)
+        save_json(queue_f, queue)
         
         # Add to used videos
         used.append({"video_id": video_id})
-        save_json(USED_FILE, used)
+        save_json(used_f, used)
         
         # Clean up raw if we have a processed version that is different
         if downloaded_path != processed_path:
@@ -98,7 +110,10 @@ def publish_from_queue():
         logger.info("No pending videos in queue.")
         return False
         
-    publisher = PublisherAgent()
+    # publisher = PublisherAgent()
+    publisher = InstagramPublisher()
+    fb = FacebookPublisher()
+
     video_path = video_to_publish['video_path']
     title = video_to_publish.get('title', 'Unknown Title')
     
@@ -106,10 +121,15 @@ def publish_from_queue():
     
     try:
         from config import CAPTION
-        # Optionally append title to caption:
-        # full_caption = f"{title}\n\n{CAPTION}"
-        full_caption = CAPTION
+        if title:
+            full_caption = f"{title}\n\n{CAPTION}"
+        else:
+            full_caption = CAPTION
+        
+        # full_caption = CAPTION
         success = publisher.publish(video_path, caption=full_caption)
+        # if success:
+        #     success_fb = fb.publish(video_path, full_caption)
     except Exception as e:
         logger.error(f"Publish agent threw exception: {str(e)}")
         success = False

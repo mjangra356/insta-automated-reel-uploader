@@ -5,7 +5,7 @@ import subprocess
 # Ensure config can be found
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from config import VIDEO_DIR
+from config import VIDEO_DIR, DISCOVER_CONTENT, DOG_VIDEO_DIR
 from utils.logger import get_logger
 
 logger = get_logger('processor_agent')
@@ -29,8 +29,17 @@ class ProcessorAgent:
         filename = os.path.basename(input_path)
         name, _ = os.path.splitext(filename)
         output_filename = f"{name}_processed.mp4"
-        output_path = os.path.join(VIDEO_DIR, output_filename)
-        
+
+        content_map = {
+            "DOG": DOG_VIDEO_DIR,
+            "CAT": VIDEO_DIR
+        }
+
+        content_type = DISCOVER_CONTENT.upper()
+
+        output_dir = content_map.get(content_type, VIDEO_DIR)
+        output_path = os.path.join(output_dir, output_filename)
+
         if os.path.exists(output_path):
             logger.info(f"Processed file already exists: {output_path}")
             return output_path

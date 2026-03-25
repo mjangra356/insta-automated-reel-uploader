@@ -5,7 +5,7 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import yt_dlp
-from config import QUEUE_TARGET_SIZE, USED_FILE, BROWSER_FOR_COOKIES, COOKIES_FILE
+from config import QUEUE_TARGET_SIZE, USED_FILE, BROWSER_FOR_COOKIES, COOKIES_FILE, DOG_USED_FILE, DISCOVER_CONTENT
 from utils.logger import get_logger
 from utils.file_manager import load_json
 
@@ -14,7 +14,15 @@ logger = get_logger('discovery_agent')
 class DiscoveryAgent:
     def __init__(self, target_size=QUEUE_TARGET_SIZE):
         self.target_size = target_size
-        self.used_file = USED_FILE
+
+        content_map = {
+            "DOG": DOG_USED_FILE,
+            "CAT": USED_FILE
+        }
+
+        content_type = DISCOVER_CONTENT.upper()
+
+        self.used_file = content_map.get(content_type, USED_FILE)
 
     def discover(self, channel_url):
         logger.info(f"Starting discovery for channel: {channel_url}")

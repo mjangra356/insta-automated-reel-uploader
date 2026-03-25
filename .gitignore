@@ -9,3 +9,5 @@ wheels/
 # Virtual environments
 .venv
 reel_factory/videos/
+reel_factory/dog_videos/
+reel_factory/config.py
